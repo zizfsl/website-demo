@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  mautic:
+    image: mautic/mautic:v5
+    container_name: mautic_app
+    restart: always
+    ports:
+      - "8080:80"
+    environment:
+      - MAUTIC_DB_HOST=db
+      - MAUTIC_DB_USER=mautic
+      - MAUTIC_DB_PASSWORD=mauticpass
+      - MAUTIC_DB_NAME=mautic
+      - MAUTIC_RUN_CRON_JOBS=true
+    volumes:
+      - mautic_data:/var/www/html
+    depends_on:
+      - db
+
+  db:
+    image: mysql:8.0
+    container_name: mautic_db
+    restart: always
+    environment:
+      - MYSQL_DATABASE=mautic
+      - MYSQL_USER=mautic
+      - MYSQL_PASSWORD=mauticpass
+      - MYSQL_ROOT_PASSWORD=rootpass
+    volumes:
+      - db_data:/var/lib/mysql
+
+  cron:
+    image: mautic/mautic:v5
+    restart: always
+    entrypoint: >
+      bash -c "while true; do
+        php /var/www/html/bin/console mautic:segments:update &&
+        php /var/www/html/bin/console mautic:campaigns:rebuild &&
+        php /var/www/html/bin/console mautic:campaigns:trigger &&
+        sleep 300;
+      done"
+    volumes:
+      - mautic_data:/var/www/html
+    depends_on:
+      - mautic
+      - db
+
+volumes:
+  mautic_data:
+  db_data:
